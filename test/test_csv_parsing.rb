@@ -133,6 +133,7 @@ class TestCSVParsing < Minitest::Test
     bad_data = <<-END_DATA.gsub(/^ +/, "")
     line,1,abc
     line,2,"def\nghi"
+
     line,4,some\rjunk
     line,5,jkl
     END_DATA
@@ -156,6 +157,7 @@ class TestCSVParsing < Minitest::Test
     bad_data = <<-END_DATA.gsub(/^ +/, "")
     line,1,abc
     line,2,"def\nghi"
+
     line,4,8'10"
     line,5,jkl
     END_DATA

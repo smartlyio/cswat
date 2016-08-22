@@ -24,6 +24,7 @@ class TestFeatures < Minitest::Test
     @sample_data = <<-END_DATA.gsub(/^ +/, "")
     line,1,abc
     line,2,"def\nghi"
+
     line,4,jkl
     END_DATA
     @csv = CSWat.new(@sample_data)
