@@ -1021,6 +1021,7 @@ class CSWat
   # <b><tt>:force_quotes</tt></b>::       +false+
   # <b><tt>:skip_lines</tt></b>::         +nil+
   # <b><tt>:liberal_parsing</tt></b>::    +false+
+  # <b><tt>:nonstandard_quote</tt></b>::  +false+
   #
   DEFAULT_OPTIONS = {
     col_sep:            ",",
@@ -1036,6 +1037,7 @@ class CSWat
     force_quotes:       false,
     skip_lines:         nil,
     liberal_parsing:    false,
+    nonstandard_quote:  false,
   }.freeze
 
   #
@@ -1506,6 +1508,12 @@ class CSWat
   #                                       attempt to parse input not conformant
   #                                       with RFC 4180, such as double quotes
   #                                       in unquoted fields.
+  # <b><tt>:nonstandard_quote</tt></b>::  When set to a +true+ value, CSV will
+  #                                       attempt to parse input with the
+  #                                       non-standard quoting system such as
+  #                                       the CSV produced by PHP standard
+  #                                       library, with non-escaped quote
+  #                                       character inside quotes.
   #
   # See CSV::DEFAULT_OPTIONS for the default settings.
   #
@@ -1631,6 +1639,8 @@ class CSWat
   def force_quotes?()       @force_quotes       end
   # Returns +true+ if illegal input is handled. See CSV::new for details.
   def liberal_parsing?()    @liberal_parsing    end
+  # Returns +true+ if non-standard quoting is handled. See CSV::new for details.
+  def nonstandard_quote?()  @nonstandard_quote    end
 
   #
   # The Encoding CSV is parsing or writing in.  This will be the Encoding you
@@ -1962,7 +1972,7 @@ class CSWat
     # show encoding
     str << " encoding:" << @encoding.name
     # show other attributes
-    %w[ lineno     col_sep     row_sep
+    %w[ lineno     col_sep     row_sep    nonstandard_quote
         quote_char skip_blanks liberal_parsing ].each do |attr_name|
       if a = instance_variable_get("@#{attr_name}")
         str << " " << attr_name << ":" << a.inspect
@@ -2095,9 +2105,10 @@ class CSWat
   # Pre-compiles parsers and stores them by name for access during reads.
   def init_parsers(options)
     # store the parser behaviors
-    @skip_blanks      = options.delete(:skip_blanks)
-    @field_size_limit = options.delete(:field_size_limit)
-    @liberal_parsing  = options.delete(:liberal_parsing)
+    @skip_blanks       = options.delete(:skip_blanks)
+    @field_size_limit  = options.delete(:field_size_limit)
+    @liberal_parsing   = options.delete(:liberal_parsing)
+    @nonstandard_quote = options.delete(:nonstandard_quote)
 
     # prebuild Regexps for faster parsing
     esc_row_sep = escape_re(@row_sep)
