@@ -147,6 +147,22 @@ class TestFeatures < Minitest::Test
       CSWat.parse_line('is,this "three, or four",fields', liberal_parsing: true))
   end
 
+  def test_nonstandard_quotes
+    input = '"Johnson, Dwayne","Dwayne "The Rock" Johnson"'
+    assert_raise(CSWat::MalformedCSVError) do
+        CSWat.parse_line(input)
+    end
+    assert_equal(["Johnson, Dwayne", 'Dwayne "The Rock" Johnson'],
+                 CSWat.parse_line(input, nonstandard_quote: true))
+
+    input = '""quoted" field"'
+    assert_raise(CSWat::MalformedCSVError) do
+        CSWat.parse_line(input)
+    end
+    assert_equal(['"quoted" field'],
+                 CSWat.parse_line(input, nonstandard_quote: true))
+  end
+
   def test_csv_behavior_readers
     %w[ unconverted_fields return_headers write_headers
         skip_blanks        force_quotes ].each do |behavior|
@@ -225,7 +241,7 @@ class TestFeatures < Minitest::Test
     end
     assert_equal("\r\n", zipped.row_sep)
   ensure
-    zipped.close
+    zipped.close if zipped
   end if defined?(Zlib::GzipReader)
 
   def test_gzip_writer_bug_fix
