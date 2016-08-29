@@ -154,6 +154,9 @@ class TestFeatures < Minitest::Test
     end
     assert_equal(["Johnson, Dwayne", 'Dwayne "The Rock" Johnson'],
                  CSWat.parse_line(input, nonstandard_quote: true))
+    assert_equal(["Johnson, Dwayne", 'Dwayne "The Rock" Johnson'],
+                 CSWat.parse_line(input, nonstandard_quote: true,
+                                  liberal_parsing: true))
 
     input = '""quoted" field"'
     assert_raise(CSWat::MalformedCSVError) do
@@ -161,6 +164,27 @@ class TestFeatures < Minitest::Test
     end
     assert_equal(['"quoted" field'],
                  CSWat.parse_line(input, nonstandard_quote: true))
+    assert_equal(['"quoted" field'],
+                 CSWat.parse_line(input, nonstandard_quote: true,
+                                  liberal_parsing: true))
+  end
+
+  def test_nonstandard_quotes_and_liberal_parsing
+    input = '"Johnson, Dwayne",Dwayne "The Rock" Johnson'
+    assert_raise(CSWat::MalformedCSVError) do
+        CSWat.parse_line(input)
+    end
+    assert_equal(["Johnson, Dwayne", 'Dwayne "The Rock" Johnson'],
+                 CSWat.parse_line(input, liberal_parsing: true,
+                                  nonstandard_quote: true))
+
+    input = '"quoted" field'
+    assert_raise(CSWat::MalformedCSVError) do
+        CSWat.parse_line(input)
+    end
+    assert_equal(['"quoted" field'],
+                 CSWat.parse_line(input, liberal_parsing: true,
+                                  nonstandard_quote: true))
   end
 
   def test_csv_behavior_readers
