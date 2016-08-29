@@ -3,6 +3,7 @@ require 'cswat'
 
 require 'minitest/autorun'
 
+require "minitest/benchmark"
 require "minitest/reporters"
 Minitest::Reporters.use!
 
