@@ -1887,7 +1887,7 @@ class CSWat
           elsif part[-1] == @quote_char
             # regular quoted column
             csv << part[1..-2]
-            if csv.last =~ @parsers[:stray_quote]
+            if csv.last =~ @parsers[:stray_quote] && !@nonstandard_quote
               raise MalformedCSVError,
                     "Missing or stray quote in line #{lineno + 1}"
             end
