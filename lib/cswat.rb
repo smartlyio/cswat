@@ -1008,20 +1008,21 @@ class CSWat
   #
   # The options used when no overrides are given by calling code.  They are:
   #
-  # <b><tt>:col_sep</tt></b>::            <tt>","</tt>
-  # <b><tt>:row_sep</tt></b>::            <tt>:auto</tt>
-  # <b><tt>:quote_char</tt></b>::         <tt>'"'</tt>
-  # <b><tt>:field_size_limit</tt></b>::   +nil+
-  # <b><tt>:converters</tt></b>::         +nil+
-  # <b><tt>:unconverted_fields</tt></b>:: +nil+
-  # <b><tt>:headers</tt></b>::            +false+
-  # <b><tt>:return_headers</tt></b>::     +false+
-  # <b><tt>:header_converters</tt></b>::  +nil+
-  # <b><tt>:skip_blanks</tt></b>::        +false+
-  # <b><tt>:force_quotes</tt></b>::       +false+
-  # <b><tt>:skip_lines</tt></b>::         +nil+
-  # <b><tt>:liberal_parsing</tt></b>::    +false+
-  # <b><tt>:nonstandard_quote</tt></b>::  +false+
+  # <b><tt>:col_sep</tt></b>::                  <tt>","</tt>
+  # <b><tt>:row_sep</tt></b>::                  <tt>:auto</tt>
+  # <b><tt>:quote_char</tt></b>::               <tt>'"'</tt>
+  # <b><tt>:field_size_limit</tt></b>::         +nil+
+  # <b><tt>:converters</tt></b>::               +nil+
+  # <b><tt>:unconverted_fields</tt></b>::       +nil+
+  # <b><tt>:headers</tt></b>::                  +false+
+  # <b><tt>:return_headers</tt></b>::           +false+
+  # <b><tt>:header_converters</tt></b>::        +nil+
+  # <b><tt>:skip_blanks</tt></b>::              +false+
+  # <b><tt>:force_quotes</tt></b>::             +false+
+  # <b><tt>:skip_lines</tt></b>::               +nil+
+  # <b><tt>:liberal_parsing</tt></b>::          +false+
+  # <b><tt>:nonstandard_quote</tt></b>::        +false+
+  # <b><tt>:accept_backslash_escape</tt></b>::  +false+
   #
   DEFAULT_OPTIONS = {
     col_sep:            ",",
@@ -1038,6 +1039,7 @@ class CSWat
     skip_lines:         nil,
     liberal_parsing:    false,
     nonstandard_quote:  false,
+    accept_backslash_escape: false,
   }.freeze
 
   #
@@ -1515,6 +1517,10 @@ class CSWat
   #                                       library, with non-escaped quote
   #                                       character inside quotes.
   #
+  # <b><tt>:accept_backslash_escape</tt></b>::  accepts backslash escaping of the
+  #                                             quote character *as well as*
+  #                                             double quoting.
+  #
   # See CSV::DEFAULT_OPTIONS for the default settings.
   #
   # Options cannot be overridden in the instance methods for performance reasons,
@@ -1640,7 +1646,9 @@ class CSWat
   # Returns +true+ if illegal input is handled. See CSV::new for details.
   def liberal_parsing?()    @liberal_parsing    end
   # Returns +true+ if non-standard quoting is handled. See CSV::new for details.
-  def nonstandard_quote?()  @nonstandard_quote    end
+  def nonstandard_quote?()  @nonstandard_quote  end
+  # Returns +true+ if accepts backslash + quote char. See CSV::new for details.
+  def accept_backslash_escape?()  @accept_backslash_escape  end
 
   #
   # The Encoding CSV is parsing or writing in.  This will be the Encoding you
@@ -1973,7 +1981,8 @@ class CSWat
     str << " encoding:" << @encoding.name
     # show other attributes
     %w[ lineno     col_sep     row_sep    nonstandard_quote
-        quote_char skip_blanks liberal_parsing ].each do |attr_name|
+        accept_backslash_escape   quote_char  skip_blanks
+        liberal_parsing ].each do |attr_name|
       if a = instance_variable_get("@#{attr_name}")
         str << " " << attr_name << ":" << a.inspect
       end
@@ -2105,20 +2114,24 @@ class CSWat
   # Pre-compiles parsers and stores them by name for access during reads.
   def init_parsers(options)
     # store the parser behaviors
-    @skip_blanks       = options.delete(:skip_blanks)
-    @field_size_limit  = options.delete(:field_size_limit)
-    @liberal_parsing   = options.delete(:liberal_parsing)
-    @nonstandard_quote = options.delete(:nonstandard_quote)
+    @skip_blanks              = options.delete(:skip_blanks)
+    @field_size_limit         = options.delete(:field_size_limit)
+    @liberal_parsing          = options.delete(:liberal_parsing)
+    @nonstandard_quote        = options.delete(:nonstandard_quote)
+    @accept_backslash_escape  = options.delete(:accept_backslash_escape)
 
     # prebuild Regexps for faster parsing
     esc_row_sep = escape_re(@row_sep)
     esc_quote   = escape_re(@quote_char)
+    stray_quote = encode_re("[^", esc_quote,
+                            (@accept_backslash_escape ? "\\\\]" : "]"),
+                            esc_quote, "[^", esc_quote, "]" )
+
     @parsers = {
       # for detecting parse errors
       quote_or_nl:    encode_re("[", esc_quote, "\r\n]"),
       nl_or_lf:       encode_re("[\r\n]"),
-      stray_quote:    encode_re( "[^", esc_quote, "]", esc_quote,
-                                 "[^", esc_quote, "]" ),
+      stray_quote:    stray_quote,
       # safer than chomp!()
       line_end:       encode_re(esc_row_sep, "\\z"),
       # illegal unquoted characters
