@@ -154,7 +154,6 @@ class TestFeatures < Minitest::Test
     end
 
     # should accept both \" and "" as escape sequences
-    puts input
     assert_equal(["Johnson, Dwayne", 'Dwayne "The Rock" Johnson'],
                  CSWat.parse_line(input, accept_backslash_escape: true))
   end
