@@ -31,6 +31,10 @@ is only one new option: `nonstandard_quote` which is a boolean value determinig
 if it should try to handle non-standard quoting style of PHP standard library
 csv implementation. Look at the [tests] for more information.
 
+Additionally CSWat provides a niftly small executable (`cswat`, obviously) which
+reads from `ARGF` and prints each row it parsed with `p` so you can see how
+CSWat sees your local file.
+
 ## Development
 
 After checking out the repo, run `bin/setup` to install dependencies. Then, run
