@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+
+require 'cswat'
+
+CSWat(ARGF) do |csv_in|
+  csv_in.each { |row| p row }
+end
