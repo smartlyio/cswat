@@ -24,7 +24,12 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+`CSWat` is basically a fork of Ruby masters branch CSV library, renamed to
+`CSWat` to avoid clashes. Use is as you would use `CSV`, with addition to a few
+added options to relax some csv restrictions around the standards. For now ther
+is only one new option: `nonstandard_quote` which is a boolean value determinig
+if it should try to handle non-standard quoting style of PHP standard library
+csv implementation. Look at the [tests] for more information.
 
 ## Development
 
@@ -54,3 +59,4 @@ The gem is available as open source under the terms of the [MIT License].
 [Contributor Covenant]: http://contributor-covenant.org
 [stdlibcsv]: https://github.com/ruby/ruby/blob/trunk/lib/csv.rb
 [jeg2]: https://twitter.com/jeg2
+[tests]: https://github.com/smartlyio/cswat/blob/master/test/test_features.rb
