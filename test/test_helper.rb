@@ -5,6 +5,7 @@ require 'minitest/autorun'
 
 require "minitest/benchmark"
 require "minitest/reporters"
+require "minitest/focus"
 Minitest::Reporters.use!
 
 require 'timeout'
