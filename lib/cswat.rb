@@ -1886,6 +1886,8 @@ class CSWat
             csv.last << @col_sep
           end
         elsif part[0] == @quote_char
+          part.gsub!(encode_re("\\\\", escape_re(@quote_char)),
+                            @quote_char * 2) if @accept_backslash_escape
           # If we are starting a new quoted column
           if part.count(@quote_char) % 2 != 0
             # start an extended column
@@ -2123,15 +2125,13 @@ class CSWat
     # prebuild Regexps for faster parsing
     esc_row_sep = escape_re(@row_sep)
     esc_quote   = escape_re(@quote_char)
-    stray_quote = encode_re("[^", esc_quote,
-                            (@accept_backslash_escape ? "\\\\]" : "]"),
-                            esc_quote, "[^", esc_quote, "]" )
 
     @parsers = {
       # for detecting parse errors
       quote_or_nl:    encode_re("[", esc_quote, "\r\n]"),
       nl_or_lf:       encode_re("[\r\n]"),
-      stray_quote:    stray_quote,
+      stray_quote:    encode_re("[^", esc_quote,"]", esc_quote,
+                                "[^", esc_quote, "]" ),
       # safer than chomp!()
       line_end:       encode_re(esc_row_sep, "\\z"),
       # illegal unquoted characters
