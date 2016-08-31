@@ -1872,7 +1872,7 @@ class CSWat
       parts.each do |part|
         if in_extended_col
           # If we are continuing a previous column
-          if part[-1] == @quote_char && part.count(@quote_char) % 2 != 0
+          if part =~ @parsers[:extended_end_quote]
             # extended column ends
             csv.last << part[0..-2]
             if csv.last =~ @parsers[:stray_quote]
@@ -1885,23 +1885,24 @@ class CSWat
             csv.last << part
             csv.last << @col_sep
           end
-        elsif part[0] == @quote_char
+        elsif part =~ @parsers[:start_quote] || part =~ @parsers[:empty_col]
           part.gsub!(encode_re("\\\\", escape_re(@quote_char)),
                             @quote_char * 2) if @accept_backslash_escape
           # If we are starting a new quoted column
-          if part.count(@quote_char) % 2 != 0
-            # start an extended column
-            csv             << part[1..-1]
-            csv.last        << @col_sep
-            in_extended_col =  true
-          elsif part[-1] == @quote_char
+          if part =~ @parsers[:end_quote] || part =~ @parsers[:empty_col]
             # regular quoted column
+            # p @parsers[:empty_col]
             csv << part[1..-2]
-            if csv.last =~ @parsers[:stray_quote] && !@nonstandard_quote
+            if !@nonstandard_quote && csv.last =~ @parsers[:stray_quote]
               raise MalformedCSVError,
                     "Missing or stray quote in line #{lineno + 1}"
             end
             csv.last.gsub!(@quote_char * 2, @quote_char)
+          elsif part.count(@quote_char) % 2 != 0
+            # start an extended column
+            csv             << part[1..-1]
+            csv.last        << @col_sep
+            in_extended_col =  true
           elsif @liberal_parsing
             csv << part
           else
@@ -2135,7 +2136,15 @@ class CSWat
       # safer than chomp!()
       line_end:       encode_re(esc_row_sep, "\\z"),
       # illegal unquoted characters
-      return_newline: encode_str("\r\n")
+      return_newline: encode_str("\r\n"),
+
+      start_quote:    encode_re("\\A", esc_quote, "(", esc_quote * 2, ")*",
+                                "(\\z|[^", esc_quote, "])"),
+      end_quote:          encode_re("[^", esc_quote, "]", esc_quote,
+                                    "(", esc_quote * 2, ")*\\z"),
+      extended_end_quote: encode_re("(\\A|[^", esc_quote, "])", esc_quote,
+                                    "(", esc_quote * 2, ")*\\z"),
+      empty_col:      encode_re("\\A", "(", esc_quote * 2, ")+\\z")
     }
   end
 
