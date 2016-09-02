@@ -169,13 +169,13 @@ class TestFeatures < Minitest::Test
                  CSWat.parse_line(input, nonstandard_quote: true,
                                   liberal_parsing: true))
 
-    input = '""quoted" field"'
+    input = 'a "quoted" field with 5" of wat'
     assert_raise(CSWat::MalformedCSVError) do
         CSWat.parse_line(input)
     end
-    assert_equal(['"quoted" field'],
-                 CSWat.parse_line(input, nonstandard_quote: true))
-    assert_equal(['"quoted" field'],
+    assert_equal([input],
+                 CSWat.parse_line("\"#{input}\"", nonstandard_quote: true))
+    assert_equal([input],
                  CSWat.parse_line(input, nonstandard_quote: true,
                                   liberal_parsing: true))
   end
