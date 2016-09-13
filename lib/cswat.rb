@@ -1022,6 +1022,7 @@ class CSWat
   # <b><tt>:skip_lines</tt></b>::               +nil+
   # <b><tt>:liberal_parsing</tt></b>::          +false+
   # <b><tt>:nonstandard_quote</tt></b>::        +false+
+  # <b><tt>:graceful_errors</tt></b>::          +false+
   # <b><tt>:accept_backslash_escape</tt></b>::  +false+
   #
   DEFAULT_OPTIONS = {
@@ -1039,6 +1040,7 @@ class CSWat
     skip_lines:         nil,
     liberal_parsing:    false,
     nonstandard_quote:  false,
+    graceful_errors:    false,
     accept_backslash_escape: false,
   }.freeze
 
@@ -1510,13 +1512,16 @@ class CSWat
   #                                       attempt to parse input not conformant
   #                                       with RFC 4180, such as double quotes
   #                                       in unquoted fields.
-  # <b><tt>:nonstandard_quote</tt></b>::  When set to a +true+ value, CSV will
+  # <b><tt>:nonstandard_quote</tt></b>::  When set to +true+ value, CSV will
   #                                       attempt to parse input with the
   #                                       non-standard quoting system such as
   #                                       the CSV produced by PHP standard
   #                                       library, with non-escaped quote
   #                                       character inside quotes.
-  #
+  # <b><tt>:graceful_errors</tt></b>::    When set to +true+, instead of raising
+  #                                       MalformedCSVError, pass the Exceptions
+  #                                       as the row object and go on with the
+  #                                       next row.
   # <b><tt>:accept_backslash_escape</tt></b>::  accepts backslash escaping of the
   #                                             quote character *as well as*
   #                                             double quoting.
@@ -1645,8 +1650,11 @@ class CSWat
   def force_quotes?()       @force_quotes       end
   # Returns +true+ if illegal input is handled. See CSV::new for details.
   def liberal_parsing?()    @liberal_parsing    end
-  # Returns +true+ if non-standard quoting is handled. See CSV::new for details.
+  # returns +true+ if non-standard quoting is handled. see csv::new for details.
   def nonstandard_quote?()  @nonstandard_quote  end
+  # Returns +true+ if you want the exception to be handed to you instead of
+  # being raised. See CSV::new for details.
+  def graceful_errors?()  @graceful_errors  end
   # Returns +true+ if accepts backslash + quote char. See CSV::new for details.
   def accept_backslash_escape?()  @accept_backslash_escape  end
 
@@ -1829,135 +1837,143 @@ class CSWat
     in_extended_col = false
     csv             = Array.new
 
+
     loop do
-      # add another read to the line
-      unless parse = @io.gets(@row_sep)
-        return nil
-      end
+      begin
+        # add another read to the line
+        unless parse = @io.gets(@row_sep)
+          return nil
+        end
 
-      parse.sub!(@parsers[:line_end], "")
+        parse.sub!(@parsers[:line_end], "")
 
-      if csv.empty?
-        #
-        # I believe a blank line should be an <tt>Array.new</tt>, not Ruby 1.8
-        # CSV's <tt>[nil]</tt>
-        #
-        if parse.empty?
-          @lineno += 1
-          if @skip_blanks
-            next
-          elsif @unconverted_fields
-            return add_unconverted_fields(Array.new, Array.new)
-          elsif @use_headers
-            return self.class::Row.new(Array.new, Array.new)
-          else
-            return Array.new
+        if csv.empty?
+          #
+          # I believe a blank line should be an <tt>Array.new</tt>, not Ruby 1.8
+          # CSV's <tt>[nil]</tt>
+          #
+          if parse.empty?
+            @lineno += 1
+            if @skip_blanks
+              next
+            elsif @unconverted_fields
+              return add_unconverted_fields(Array.new, Array.new)
+            elsif @use_headers
+              return self.class::Row.new(Array.new, Array.new)
+            else
+              return Array.new
+            end
           end
         end
-      end
 
-      next if @skip_lines and @skip_lines.match parse
+        next if @skip_lines and @skip_lines.match parse
 
-      parts =  parse.split(@col_sep, -1)
-      if parts.empty?
-        if in_extended_col
-          csv[-1] << @col_sep   # will be replaced with a @row_sep after the parts.each loop
-        else
-          csv << nil
-        end
-      end
-
-      # This loop is the hot path of csv parsing. Some things may be non-dry
-      # for a reason. Make sure to benchmark when refactoring.
-      parts.each do |part|
-        if in_extended_col
-          # If we are continuing a previous column
-          if part =~ @parsers[:extended_end_quote]
-            # extended column ends
-            csv.last << part[0..-2]
-            if csv.last =~ @parsers[:stray_quote]
-              raise MalformedCSVError,
-                    "Missing or stray quote in line #{lineno + 1}"
-            end
-            csv.last.gsub!(@quote_char * 2, @quote_char)
-            in_extended_col = false
+        parts =  parse.split(@col_sep, -1)
+        if parts.empty?
+          if in_extended_col
+            csv[-1] << @col_sep   # will be replaced with a @row_sep after the parts.each loop
           else
-            csv.last << part
-            csv.last << @col_sep
+            csv << nil
           end
-        elsif part =~ @parsers[:start_quote] || part =~ @parsers[:empty_col]
-          part.gsub!(encode_re("\\\\", escape_re(@quote_char)),
-                            @quote_char * 2) if @accept_backslash_escape
-          # If we are starting a new quoted column
-          if part =~ @parsers[:end_quote] || part =~ @parsers[:empty_col]
-            # regular quoted column
-            # p @parsers[:empty_col]
-            csv << part[1..-2]
-            if !@nonstandard_quote && csv.last =~ @parsers[:stray_quote]
-              raise MalformedCSVError,
-                    "Missing or stray quote in line #{lineno + 1}"
-            end
-            csv.last.gsub!(@quote_char * 2, @quote_char)
-          elsif part.count(@quote_char) % 2 != 0
-            # start an extended column
-            csv             << part[1..-1]
-            csv.last        << @col_sep
-            in_extended_col =  true
-          elsif @liberal_parsing
-            csv << part
-          else
-            raise MalformedCSVError,
+        end
+
+        # This loop is the hot path of csv parsing. Some things may be non-dry
+        # for a reason. Make sure to benchmark when refactoring.
+        parts.each do |part|
+          if in_extended_col
+            # If we are continuing a previous column
+            if part =~ @parsers[:extended_end_quote]
+              # extended column ends
+              csv.last << part[0..-2]
+              if csv.last =~ @parsers[:stray_quote]
+                raise MalformedCSVError,
                   "Missing or stray quote in line #{lineno + 1}"
-          end
-        elsif part =~ @parsers[:quote_or_nl]
-          # Unquoted field with bad characters.
-          if part =~ @parsers[:nl_or_lf]
-            raise MalformedCSVError, "Unquoted fields do not allow " +
-                                     "\\r or \\n (line #{lineno + 1})."
-          else
-            if @liberal_parsing
+              end
+              csv.last.gsub!(@quote_char * 2, @quote_char)
+              in_extended_col = false
+            else
+              csv.last << part
+              csv.last << @col_sep
+            end
+          elsif part =~ @parsers[:start_quote] || part =~ @parsers[:empty_col]
+            part.gsub!(encode_re("\\\\", escape_re(@quote_char)),
+                       @quote_char * 2) if @accept_backslash_escape
+            # If we are starting a new quoted column
+            if part =~ @parsers[:end_quote] || part =~ @parsers[:empty_col]
+              # regular quoted column
+              csv << part[1..-2]
+              if !@nonstandard_quote && csv.last =~ @parsers[:stray_quote]
+                raise MalformedCSVError,
+                  "Missing or stray quote in line #{lineno + 1}"
+              end
+              csv.last.gsub!(@quote_char * 2, @quote_char)
+            elsif part.count(@quote_char) % 2 != 0
+              # start an extended column
+              csv             << part[1..-1]
+              csv.last        << @col_sep
+              in_extended_col =  true
+            elsif @liberal_parsing
               csv << part
             else
-              raise MalformedCSVError, "Illegal quoting in line #{lineno + 1}."
+              raise MalformedCSVError,
+                "Missing or stray quote in line #{lineno + 1}"
             end
+          elsif part =~ @parsers[:quote_or_nl]
+            # Unquoted field with bad characters.
+            if part =~ @parsers[:nl_or_lf]
+              raise MalformedCSVError, "Unquoted fields do not allow " +
+                "\\r or \\n (line #{lineno + 1})."
+            else
+              if @liberal_parsing
+                csv << part
+              else
+                raise MalformedCSVError, "Illegal quoting in line #{lineno + 1}."
+              end
+            end
+          else
+            # Regular ole unquoted field.
+            csv << (part.empty? ? nil : part)
           end
+        end
+
+        # Replace tacked on @col_sep with @row_sep if we are still in an extended
+        # column.
+        csv[-1][-1] = @row_sep if in_extended_col
+
+        if in_extended_col
+          # if we're at eof?(), a quoted field wasn't closed...
+          if @io.eof?
+            raise MalformedCSVError,
+              "Unclosed quoted field on line #{lineno + 1}."
+          elsif @field_size_limit and csv.last.size >= @field_size_limit
+            raise MalformedCSVError, "Field size exceeded on line #{lineno + 1}."
+          end
+          # otherwise, we need to loop and pull some more data to complete the row
         else
-          # Regular ole unquoted field.
-          csv << (part.empty? ? nil : part)
+          @lineno += 1
+
+          # save fields unconverted fields, if needed...
+          unconverted = csv.dup if @unconverted_fields
+
+          # convert fields, if needed...
+          csv = convert_fields(csv) unless @use_headers or @converters.empty?
+          # parse out header rows and handle CSV::Row conversions...
+          csv = parse_headers(csv)  if     @use_headers
+
+          # inject unconverted fields and accessor, if requested...
+          if @unconverted_fields and not csv.respond_to? :unconverted_fields
+            add_unconverted_fields(csv, unconverted)
+          end
+
+          # return the results
+          break csv
         end
-      end
-
-      # Replace tacked on @col_sep with @row_sep if we are still in an extended
-      # column.
-      csv[-1][-1] = @row_sep if in_extended_col
-
-      if in_extended_col
-        # if we're at eof?(), a quoted field wasn't closed...
-        if @io.eof?
-          raise MalformedCSVError,
-                "Unclosed quoted field on line #{lineno + 1}."
-        elsif @field_size_limit and csv.last.size >= @field_size_limit
-          raise MalformedCSVError, "Field size exceeded on line #{lineno + 1}."
+      rescue MalformedCSVError => e
+        if @graceful_errors
+          return e
+        else
+          raise e
         end
-        # otherwise, we need to loop and pull some more data to complete the row
-      else
-        @lineno += 1
-
-        # save fields unconverted fields, if needed...
-        unconverted = csv.dup if @unconverted_fields
-
-        # convert fields, if needed...
-        csv = convert_fields(csv) unless @use_headers or @converters.empty?
-        # parse out header rows and handle CSV::Row conversions...
-        csv = parse_headers(csv)  if     @use_headers
-
-        # inject unconverted fields and accessor, if requested...
-        if @unconverted_fields and not csv.respond_to? :unconverted_fields
-          add_unconverted_fields(csv, unconverted)
-        end
-
-        # return the results
-        break csv
       end
     end
   end
@@ -1983,7 +1999,7 @@ class CSWat
     # show encoding
     str << " encoding:" << @encoding.name
     # show other attributes
-    %w[ lineno     col_sep     row_sep    nonstandard_quote
+    %w[ lineno     col_sep     row_sep    nonstandard_quote graceful_errors
         accept_backslash_escape   quote_char  skip_blanks
         liberal_parsing ].each do |attr_name|
       if a = instance_variable_get("@#{attr_name}")
@@ -2032,7 +2048,7 @@ class CSWat
     #
     if @row_sep == :auto
       if [ARGF, STDIN, STDOUT, STDERR].include?(@io) or
-         (defined?(Zlib) and @io.class == Zlib::GzipWriter)
+        (defined?(Zlib) and @io.class == Zlib::GzipWriter)
         @row_sep = $INPUT_RECORD_SEPARATOR
       else
         begin
@@ -2055,7 +2071,7 @@ class CSWat
             # try to find a standard separator
             if sample =~ encode_re("\r\n?|\n")
               @row_sep = $&
-              break
+                break
             end
           end
 
@@ -2090,28 +2106,28 @@ class CSWat
       field         = String(field)
       encoded_quote = @quote_char.encode(field.encoding)
       encoded_quote                                +
-      field.gsub(encoded_quote, encoded_quote * 2) +
-      encoded_quote
+        field.gsub(encoded_quote, encoded_quote * 2) +
+        encoded_quote
     end
     quotable_chars = encode_str("\r\n", @col_sep, @quote_char)
     @quote         = if @force_quotes
-      do_quote
-    else
-      lambda do |field|
-        if field.nil?  # represent +nil+ fields as empty unquoted fields
-          ""
-        else
-          field = String(field)  # Stringify fields
-          # represent empty fields as empty quoted fields
-          if field.empty? or
-             field.count(quotable_chars).nonzero?
-            do_quote.call(field)
-          else
-            field  # unquoted field
-          end
-        end
-      end
-    end
+                       do_quote
+                     else
+                       lambda do |field|
+                         if field.nil?  # represent +nil+ fields as empty unquoted fields
+                           ""
+                         else
+                           field = String(field)  # Stringify fields
+                           # represent empty fields as empty quoted fields
+                           if field.empty? or
+                             field.count(quotable_chars).nonzero?
+                             do_quote.call(field)
+                           else
+                             field  # unquoted field
+                           end
+                         end
+                       end
+                     end
   end
 
   # Pre-compiles parsers and stores them by name for access during reads.
@@ -2121,6 +2137,7 @@ class CSWat
     @field_size_limit         = options.delete(:field_size_limit)
     @liberal_parsing          = options.delete(:liberal_parsing)
     @nonstandard_quote        = options.delete(:nonstandard_quote)
+    @graceful_errors          = options.delete(:graceful_errors)
     @accept_backslash_escape  = options.delete(:accept_backslash_escape)
 
     # prebuild Regexps for faster parsing
@@ -2251,11 +2268,11 @@ class CSWat
       converters.each do |converter|
         break if field.nil?
         field = if converter.arity == 1  # straight field converter
-          converter[field]
-        else                             # FieldInfo converter
-          header = @use_headers && !headers ? @headers[index] : nil
-          converter[field, FieldInfo.new(index, lineno, header)]
-        end
+                  converter[field]
+                else                             # FieldInfo converter
+                  header = @use_headers && !headers ? @headers[index] : nil
+                  converter[field, FieldInfo.new(index, lineno, header)]
+                end
         break unless field.is_a? String  # short-circuit pipeline for speed
       end
       field  # final state of each field, converted or original
@@ -2275,15 +2292,15 @@ class CSWat
   def parse_headers(row = nil)
     if @headers.nil?                # header row
       @headers = case @use_headers  # save headers
-                 # Array of headers
+                   # Array of headers
                  when Array then @use_headers
-                 # CSV header String
+                   # CSV header String
                  when String
                    self.class.parse_line( @use_headers,
-                                          col_sep:    @col_sep,
-                                          row_sep:    @row_sep,
-                                          quote_char: @quote_char )
-                 # first row is headers
+                                         col_sep:    @col_sep,
+                                         row_sep:    @row_sep,
+                                         quote_char: @quote_char )
+                   # first row is headers
                  else            row
                  end
 

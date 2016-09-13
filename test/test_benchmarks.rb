@@ -16,4 +16,11 @@ class TestCSWat < Minitest::Benchmark
                   nonstandard_quote: true)
     end
   end
+
+  def bench_nonstandar_quote_performance
+    assert_performance_linear 0.999 do |n| # n is a range value
+      CSWat.parse("1,2.1,\"Dwayne \"The Rock\" Johnson\",-1\n"*n,
+                  graceful_errors: true)
+    end
+  end
 end
