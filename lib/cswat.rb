@@ -1970,7 +1970,7 @@ class CSWat
         end
       rescue MalformedCSVError => e
         if @graceful_errors
-          return e
+          break e
         else
           raise e
         end
