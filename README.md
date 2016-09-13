@@ -26,10 +26,17 @@ Or install it yourself as:
 
 `CSWat` is basically a fork of Ruby masters branch CSV library, renamed to
 `CSWat` to avoid clashes. Use is as you would use `CSV`, with addition to a few
-added options to relax some csv restrictions around the standards. For now ther
-is only one new option: `nonstandard_quote` which is a boolean value determinig
-if it should try to handle non-standard quoting style of PHP standard library
-csv implementation. Look at the [tests] for more information.
+added options to relax some csv restrictions around the standards. For now there
+are a few new options:
+
++ `nonstandard_quote` which is a boolean value determinig if it should try to
+  handle non-standard quoting style of PHP standard library csv implementation.
+  Look at the [tests] for more information.
++ `graceful_errors` which overrides default behaviour of raising MalformedCSV
+  exceptions and instead returns them as rows.
++ `accept_backslash_escape` which causes the parser to accept escaping of quote
+  character with a backslash (e.g. `\"`) the same as standard double-quote
+  escaping (e.g. `""`).
 
 Additionally CSWat provides a niftly small executable (`cswat`, obviously) which
 reads from `ARGF` and prints each row it parsed with `p` so you can see how
