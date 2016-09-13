@@ -180,6 +180,16 @@ class TestFeatures < Minitest::Test
                                   liberal_parsing: true))
   end
 
+  def test_graceful_errors
+    input = "e,f,g,h\"\na,b,c,d"
+    assert_raise(CSWat::MalformedCSVError) do
+        CSWat.parse_line(input)
+    end
+    result = CSWat.parse(input, nonstandard_quote: true, graceful_errors: true)
+    assert_instance_of(CSWat::MalformedCSVError, result[0])
+    assert_equal(["a", "b", "c", "d"], result[1])
+  end
+
   def test_nonstandard_quotes_and_liberal_parsing
     input = '"Johnson, Dwayne",Dwayne "The Rock" Johnson'
     assert_raise(CSWat::MalformedCSVError) do
