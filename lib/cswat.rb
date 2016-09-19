@@ -1521,7 +1521,12 @@ class CSWat
   # <b><tt>:graceful_errors</tt></b>::    When set to +true+, instead of raising
   #                                       MalformedCSVError, pass the Exceptions
   #                                       as the row object and go on with the
-  #                                       next row.
+  #                                       next row. Note that enabling this flag
+  #                                       will result in total intolorance to
+  #                                       row seperator inside quoted columns
+  #                                       because having both of these features
+  #                                       will make it very hard to find out
+  #                                       exactly on which row things went wrong.
   # <b><tt>:accept_backslash_escape</tt></b>::  accepts backslash escaping of the
   #                                             quote character *as well as*
   #                                             double quoting.
@@ -1942,7 +1947,11 @@ class CSWat
 
         if in_extended_col
           # if we're at eof?(), a quoted field wasn't closed...
-          if @io.eof?
+          # Also in case of activating graceful errors flag, we gotta have to
+          # forgo using row seperators inside quotes as it effectively hinders the
+          # ability to know exactly which row was at fault and where we should
+          # start off again.
+          if @io.eof? || @graceful_errors
             raise MalformedCSVError,
               "Unclosed quoted field on line #{lineno + 1}."
           elsif @field_size_limit and csv.last.size >= @field_size_limit
