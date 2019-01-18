@@ -37,6 +37,8 @@ are a few new options:
 + `accept_backslash_escape` which causes the parser to accept escaping of quote
   character with a backslash (e.g. `\"`) the same as standard double-quote
   escaping (e.g. `""`).
++ `liberal_parsing` which accepts partially quoted column values, e.g. see
+  [liberal parsing test] for concrete examples.
 
 Additionally CSWat provides a niftly small executable (`cswat`, obviously) which
 reads from `ARGF` and prints each row it parsed with `p` so you can see how
@@ -71,3 +73,4 @@ The gem is available as open source under the terms of the [MIT License].
 [stdlibcsv]: https://github.com/ruby/ruby/blob/trunk/lib/csv.rb
 [jeg2]: https://twitter.com/jeg2
 [tests]: https://github.com/smartlyio/cswat/blob/master/test/test_features.rb
+[liberal parsing test]: https://github.com/smartlyio/cswat/blob/master/test/test_features.rb#L127
