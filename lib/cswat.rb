@@ -1271,7 +1271,7 @@ class CSWat
     # decorator
     file_opts = {universal_newline: false}.merge(options)
     begin
-      f = File.open(*args, file_opts)
+      f = File.open(*args, **file_opts)
     rescue ArgumentError => e
       raise unless /needs binmode/ =~ e.message and args.size == 1
       args << "rb"
