@@ -54,7 +54,7 @@ class TestTable < Minitest::Test
     ##################
     # by row
     @rows.each_index { |i| assert_equal(@rows[i], @table[i]) }
-    assert_equal(nil, @table[100])  # empty row
+    assert_nil @table[100]  # empty row
 
     # by row with Range
     assert_equal([@table[1], @table[2]], @table[1..2])
@@ -418,9 +418,10 @@ class TestTable < Minitest::Test
   end
 
   def test_inspect_encoding_is_ascii_compatible
-    assert_send([Encoding, :compatible?,
-                 Encoding.find("US-ASCII"),
-                 @table.inspect.encoding],
-            "inspect() was not ASCII compatible." )
+    assert Encoding.compatible?(
+      Encoding.find("US-ASCII"),
+      @table.inspect.encoding
+    ),
+    "inspect() was not ASCII compatible."
   end
 end

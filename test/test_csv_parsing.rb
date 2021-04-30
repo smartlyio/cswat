@@ -87,7 +87,7 @@ class TestCSVParsing < Minitest::Test
 
   def test_james_edge_cases
     # A read at eof? should return nil.
-    assert_equal(nil, CSWat.parse_line(""))
+    assert_nil CSWat.parse_line("")
     #
     # With Ruby 1.8 CSV it's impossible to tell an empty line from a line
     # containing a single +nil+ field.  The old CSV library returns
@@ -145,7 +145,7 @@ class TestCSVParsing < Minitest::Test
     begin
       loop do
         assert_not_nil(csv.shift)
-        assert_send([csv.lineno, :<, 4])
+        assert_operator(csv.lineno, :<, 4)
       end
     rescue CSWat::MalformedCSVError
       assert_equal( "Unquoted fields do not allow \\r or \\n (line 4).",
@@ -169,7 +169,7 @@ class TestCSVParsing < Minitest::Test
     begin
       loop do
         assert_not_nil(csv.shift)
-        assert_send([csv.lineno, :<, 4])
+        assert_operator(csv.lineno, :<, 4)
       end
     rescue CSWat::MalformedCSVError
       assert_equal("Illegal quoting in line 4.", $!.message)
