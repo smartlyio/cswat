@@ -75,7 +75,7 @@ class TestInterface < Minitest::Test
   end
 
   def test_parse_line_with_empty_lines
-    assert_equal(nil,       CSWat.parse_line(""))  # to signal eof
+    assert_nil              CSWat.parse_line("")  # to signal eof
     assert_equal(Array.new, CSWat.parse_line("\n1,2,3"))
   end
 
@@ -106,7 +106,7 @@ class TestInterface < Minitest::Test
     CSWat.open(@path, "rb+", col_sep: "\t", row_sep: "\r\n") do |csv|
       assert_equal(@expected.shift, csv.shift)
       assert_equal(@expected.shift, csv.shift)
-      assert_equal(nil, csv.shift)
+      assert_nil csv.shift
     end
   end
 
@@ -279,23 +279,33 @@ class TestInterface < Minitest::Test
     end
   end
 
-  def test_append  # aliased add_row() and puts()
+  def test_append_1  # aliased add_row() and puts()
     File.unlink(@path)
 
     CSWat.open(@path, "wb", col_sep: "\t", row_sep: "\r\n") do |csv|
       @expected.each { |row| csv << row }
     end
 
-    test_shift
+    CSWat.open(@path, "rb+", col_sep: "\t", row_sep: "\r\n") do |csv|
+      assert_equal(@expected.shift, csv.shift)
+      assert_equal(@expected.shift, csv.shift)
+      assert_nil csv.shift
+    end
+  end
 
-    # same thing using CSV::Row objects
+  # using CSV::Row objects
+  def test_append_2
     File.unlink(@path)
 
     CSWat.open(@path, "wb", col_sep: "\t", row_sep: "\r\n") do |csv|
       @expected.each { |row| csv << CSWat::Row.new(Array.new, row) }
     end
 
-    test_shift
+    CSWat.open(@path, "rb+", col_sep: "\t", row_sep: "\r\n") do |csv|
+      assert_equal(@expected.shift, csv.shift)
+      assert_equal(@expected.shift, csv.shift)
+      assert_nil csv.shift
+    end
   end
 
   ### Test Read and Write Interface ###

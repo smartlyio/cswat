@@ -66,8 +66,8 @@ class TestRow < Minitest::Test
     assert_equal(4, @row.field("A", 1))
     assert_equal(4, @row.field("A", 2))
     assert_equal(4, @row.field("A", 3))
-    assert_equal(nil, @row.field("A", 4))
-    assert_equal(nil, @row.field("A", 5))
+    assert_nil @row.field("A", 4)
+    assert_nil @row.field("A", 5)
   end
 
   def test_fetch
@@ -227,7 +227,7 @@ class TestRow < Minitest::Test
     assert_equal(0, @row.index("A"))
     assert_equal(1, @row.index("B"))
     assert_equal(2, @row.index("C"))
-    assert_equal(nil, @row.index("Z"))
+    assert_nil @row.index("Z")
 
     # with minimum index
     assert_equal(0, @row.index("A"))
@@ -236,15 +236,15 @@ class TestRow < Minitest::Test
     assert_equal(3, @row.index("A", 2))
     assert_equal(3, @row.index("A", 3))
     assert_equal(4, @row.index("A", 4))
-    assert_equal(nil, @row.index("A", 5))
+    assert_nil @row.index("A", 5)
   end
 
   def test_queries
     # headers
-    assert_send([@row, :header?, "A"])
-    assert_send([@row, :header?, "C"])
-    assert_not_send([@row, :header?, "Z"])
-    assert_send([@row, :include?, "A"])  # alias
+    assert @row.header?("A")
+    assert @row.header?("C")
+    refute @row.header?("z")
+    assert @row.include?("A") # alias
 
     # fields
     assert(@row.field?(4))
@@ -257,14 +257,26 @@ class TestRow < Minitest::Test
     ary = @row.to_a
     @row.each do |pair|
       assert_equal(ary.first.first, pair.first)
-      assert_equal(ary.shift.last, pair.last)
+
+      if ary.first.last.nil?
+        assert_nil ary.shift.last
+        assert_nil pair.last
+      else
+        assert_equal(ary.shift.last, pair.last)
+      end
     end
 
     # hash style
     ary = @row.to_a
     @row.each do |header, field|
       assert_equal(ary.first.first, header)
-      assert_equal(ary.shift.last, field)
+
+      if ary.first.last.nil?
+        assert_nil ary.shift.last
+        assert_nil field
+      else
+        assert_equal(ary.shift.last, field)
+      end
     end
 
     # verify that we can chain the call
@@ -322,10 +334,11 @@ class TestRow < Minitest::Test
   end
 
   def test_inspect_encoding_is_ascii_compatible
-    assert_send([Encoding, :compatible?,
-                 Encoding.find("US-ASCII"),
-                 @row.inspect.encoding],
-                "inspect() was not ASCII compatible.")
+    assert Encoding.compatible?(
+      Encoding.find("US-ASCII"),
+      @row.inspect.encoding
+    ),
+    "inspect() was not ASCII compatible."
   end
 
   def test_inspect_shows_symbol_headers_as_bare_attributes
