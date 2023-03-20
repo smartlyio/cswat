@@ -1858,7 +1858,7 @@ class CSWat
         end
 
         if @max_line_length_bytes > 0 && parse.bytesize >= @max_line_length_bytes
-          msg = "Too long line at #{lineno + 1}. Exceeded or equaled the size limit of #{@max_line_length_bytes}"
+          msg = "Too long line at #{lineno + 1}. Exceeded or equaled the size limit of #{@max_line_length_bytes} bytes"
           raise MalformedCSVError, msg
         end
 
