@@ -1024,6 +1024,7 @@ class CSWat
   # <b><tt>:nonstandard_quote</tt></b>::        +false+
   # <b><tt>:graceful_errors</tt></b>::          +false+
   # <b><tt>:accept_backslash_escape</tt></b>::  +false+
+  # <b><tt>:max_line_length_bytes</tt></b>::  +0+
   #
   DEFAULT_OPTIONS = {
     col_sep:            ",",
@@ -1042,6 +1043,7 @@ class CSWat
     nonstandard_quote:  false,
     graceful_errors:    false,
     accept_backslash_escape: false,
+    max_line_length_bytes: -1
   }.freeze
 
   #
@@ -1846,8 +1848,18 @@ class CSWat
     loop do
       begin
         # add another read to the line
-        unless parse = @io.gets(@row_sep)
-          return nil
+        if @max_line_length_bytes > 0
+          parse = @io.gets(@row_sep, @max_line_length_bytes)
+        else
+          parse = @io.gets(@row_sep)
+        end
+        unless parse
+          return nil # EOF
+        end
+
+        if @max_line_length_bytes > 0 && parse.bytesize >= @max_line_length_bytes
+          msg = "Too long line at #{lineno + 1}. Exceeded or equaled the size limit of #{@max_line_length_bytes}"
+          raise MalformedCSVError, msg
         end
 
         parse.sub!(@parsers[:line_end], "")
@@ -2148,6 +2160,7 @@ class CSWat
     @nonstandard_quote        = options.delete(:nonstandard_quote)
     @graceful_errors          = options.delete(:graceful_errors)
     @accept_backslash_escape  = options.delete(:accept_backslash_escape)
+    @max_line_length_bytes    = options.delete(:max_line_length_bytes)
 
     # prebuild Regexps for faster parsing
     esc_row_sep = escape_re(@row_sep)
