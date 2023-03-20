@@ -190,8 +190,9 @@ class TestCSVParsing < Minitest::Test
   end
 
   def test_line_size_limit
-    assert_parse_errors_out( 'valid,fields,"' + BIG_DATA + '"',
-                             max_line_length_bytes: 8 )
+    assert_raise_with_message(CSWat::MalformedCSVError, "Too long line at 1. Exceeded or equaled the size limit of 8") {
+      CSWat.parse('valid,fields,"' + BIG_DATA + '"', max_line_length_bytes: 8)
+    }
   end
 
   private
