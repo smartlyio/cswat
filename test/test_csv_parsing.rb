@@ -189,6 +189,12 @@ class TestCSVParsing < Minitest::Test
                              field_size_limit: 2048 )
   end
 
+  def test_line_size_limit
+    assert_raise_with_message(CSWat::MalformedCSVError, "Too long line at 1. Exceeded or equaled the size limit of 8 bytes") {
+      CSWat.parse('valid,fields,"' + BIG_DATA + '"', max_line_length_bytes: 8)
+    }
+  end
+
   private
 
   def assert_parse_errors_out(*args)
