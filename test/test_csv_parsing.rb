@@ -176,6 +176,44 @@ class TestCSVParsing < Minitest::Test
     end
   end
 
+  def test_windows_newline_inside_quoted_value
+    options = {
+      liberal_parsing: true,
+      col_sep: ',',
+      quote_char: '"',
+      headers: false,
+      skip_blanks: true
+    }
+
+    cswat_options = {
+      accept_backslash_escape: true,
+      graceful_errors: true,
+      nonstandard_quote: true,
+    }
+
+    io = ''\
+    "1,\"quoted value with windows \r\n line break inside\"\r\n" \
+    "2, whatever unquoted value"
+
+    cswat = CSWat.new(
+      io,
+      **options.merge(cswat_options)
+    )
+
+    # csv = CSV.new(
+    #   io,
+    #   **options
+    # )
+
+    # csv_first_row = csv.readlines.first
+    cswat_first_row = cswat.readlines.first
+
+    # Parsing with CSV works, so CSWat should be _at least_ as lenient
+    # assert_equal csv_first_row, ["1", "quoted value with windows \r\n line break inside"]
+    #
+    refute_kind_of CSWat::MalformedCSVError, cswat_first_row, "Parsing the first row should not result in a CSWat::MalformedCSVError but it did"
+  end
+
   def test_the_parse_fails_fast_when_it_can_for_unquoted_fields
     assert_parse_errors_out('valid,fields,bad start"' + BIG_DATA)
   end
